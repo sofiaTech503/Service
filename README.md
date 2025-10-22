@@ -175,6 +175,188 @@ No menu lateral (sidebar), o item Serviços abrirá uma página com:
 
 🧾 Faturamento de Serviços
 
+
+# Integração Backend (API REST)
+
+📂 Estrutura recomendada no backend:
+
+backend/
+├── server.js
+├── routes/
+│   └── servicosRoutes.js
+├── controllers/
+│   └── servicosController.js
+└── models/
+    └── servicosModel.js
+
+🔹 1. models/servicosModel.js
+
+Este arquivo define a estrutura das tabelas no banco de dados (MySQL, PostgreSQL ou outro).
+
+Exemplo (MySQL):
+
+import db from "../config/db.js";
+
+// Model de Serviços
+export const getServicos = async () => {
+  const [rows] = await db.query("SELECT * FROM servicos");
+  return rows;
+};
+
+export const createServico = async (descricao, valor, status, data) => {
+  const [result] = await db.query(
+    "INSERT INTO servicos (descricao, valor, status, data) VALUES (?, ?, ?, ?)",
+    [descricao, valor, status, data]
+  );
+  return result.insertId;
+};
+
+🔹 2. controllers/servicosController.js
+
+Camada intermediária entre rotas e banco.
+
+import * as Servicos from "../models/servicosModel.js";
+
+export const listarServicos = async (req, res) => {
+  try {
+    const data = await Servicos.getServicos();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: "Erro ao listar serviços", error });
+  }
+};
+
+export const adicionarServico = async (req, res) => {
+  try {
+    const { descricao, valor, status, data } = req.body;
+    const id = await Servicos.createServico(descricao, valor, status, data);
+    res.status(201).json({ id, message: "Serviço cadastrado com sucesso" });
+  } catch (error) {
+    res.status(500).json({ message: "Erro ao cadastrar serviço", error });
+  }
+};
+
+🔹 3. routes/servicosRoutes.js
+
+Definição das rotas da API.
+
+import express from "express";
+import { listarServicos, adicionarServico } from "../controllers/servicosController.js";
+
+const router = express.Router();
+
+router.get("/", listarServicos);
+router.post("/", adicionarServico);
+
+export default router;
+
+🔹 4. server.js
+
+Integra tudo e inicia o servidor.
+
+import express from "express";
+import cors from "cors";
+import servicosRoutes from "./routes/servicosRoutes.js";
+import db from "./config/db.js";
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Rotas
+app.use("/api/servicos", servicosRoutes);
+
+const PORT = 5000;
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+
+🔹 5. config/db.js
+
+Conexão com o MySQL.
+
+import mysql from "mysql2/promise";
+
+const db = await mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "",
+  database: "erp_db"
+});
+
+console.log("🟢 Banco de dados conectado com sucesso!");
+
+export default db;
+
+🔹 6. Tabela no MySQL
+
+Crie essa tabela no seu banco:
+
+CREATE TABLE IF NOT EXISTS servicos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  descricao VARCHAR(255) NOT NULL,
+  valor DECIMAL(10,2),
+  status VARCHAR(50),
+  data DATE
+);
+
+🔹 7. Integração com o Frontend (React)
+
+No React, edite o componente FaturamentoServicos.jsx para buscar os dados da API:
+
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+
+export default function FaturamentoServicos() {
+  const [servicos, setServicos] = useState([]);
+
+  useEffect(() => {
+    axios.get("http://localhost:5000/api/servicos")
+      .then((res) => setServicos(res.data))
+      .catch((err) => console.error("Erro ao carregar serviços:", err));
+  }, []);
+
+  return (
+    <section>
+      <h2>🧾 Faturamento de Serviços</h2>
+      <table style={{ width: "100%", marginTop: 10, borderCollapse: "collapse" }}>
+        <thead>
+          <tr style={{ background: "#eee" }}>
+            <th>Serviço</th>
+            <th>Data</th>
+            <th>Valor (R$)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {servicos.map((s) => (
+            <tr key={s.id} style={{ textAlign: "center", borderBottom: "1px solid #ddd" }}>
+              <td>{s.descricao}</td>
+              <td>{s.data}</td>
+              <td>{s.valor?.toFixed(2)}</td>
+              <td>{s.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+🔹 Teste
+
+Execute o backend:
+
+node server.js
+
+
+Execute o frontend:
+
+npm run dev
+
+
+Acesse http://localhost:5173/servicos
+
+👉 Você verá os serviços carregados diretamente do banco.
+
 📄 Contratos Ativos
 
 🧾 Recibos Emitidos
